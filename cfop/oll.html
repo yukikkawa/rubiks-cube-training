@@ -54,6 +54,53 @@
       color: var(--muted);
     }
 
+    .tag-filter {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .tag-filter[hidden] {
+      display: none;
+    }
+
+    .tag-btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      line-height: 1.2;
+      padding: 6px 12px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .tag-btn:hover {
+      border-color: #b8c4d9;
+      background: #f8faff;
+    }
+
+    .tag-btn.active {
+      border-color: var(--accent);
+      background: #e8f0fe;
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .empty-filter {
+      padding: 24px 16px;
+      text-align: center;
+      color: var(--muted);
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
     main {
       max-width: 1100px;
       margin: 0 auto;
@@ -90,6 +137,10 @@
       border-radius: 10px;
       padding: 12px;
       min-height: 132px;
+    }
+
+    .oll-card.is-filtered-out {
+      display: none !important;
     }
 
     .oll-image-wrap {
@@ -129,30 +180,36 @@
       background: #e8f0fe;
       border-radius: 999px;
       padding: 2px 8px;
-      margin-bottom: 6px;
-    }
-
-    .oll-name {
-      margin: 0 0 4px;
-      font-size: 1.05rem;
-      font-weight: 700;
-      word-break: break-word;
-    }
-
-    .oll-category {
-      margin: 0 0 8px;
-      font-size: 0.8rem;
-      color: var(--muted);
+      margin-bottom: 8px;
     }
 
     .oll-algorithm {
-      margin: 0;
+      margin: 0 0 10px;
       font-family: "JetBrains Mono", monospace;
-      font-size: 0.92rem;
-      font-weight: 500;
-      line-height: 1.6;
+      font-size: 1.05rem;
+      font-weight: 700;
+      line-height: 1.55;
       word-break: break-word;
       white-space: pre-wrap;
+    }
+
+    .oll-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .oll-category,
+    .oll-name {
+      margin: 0;
+      font-size: 0.8125rem;
+      color: var(--muted);
+      line-height: 1.45;
+      word-break: break-word;
+    }
+
+    .oll-name {
+      font-weight: 500;
     }
 
     .oll-memo {
@@ -178,9 +235,11 @@
   <header>
     <h1>OLL 手順一覧</h1>
     <p id="summary">読み込み中…</p>
+    <div id="tag-filter" class="tag-filter" hidden></div>
   </header>
   <main>
     <div id="status" class="status">データを読み込んでいます…</div>
+    <div id="empty-filter" class="empty-filter" hidden>該当するケースがありません。</div>
     <div id="oll-grid" class="oll-grid" hidden></div>
   </main>
 
@@ -282,9 +341,28 @@
       });
     }
 
+    function uniqueCategories(entries) {
+      const counts = new Map();
+      for (const entry of entries) {
+        const category = getCategory(entry);
+        if (!category) {
+          continue;
+        }
+        counts.set(category, (counts.get(category) ?? 0) + 1);
+      }
+      return [...counts.entries()]
+        .sort(([a], [b]) => a.localeCompare(b, "ja"))
+        .map(([category, count]) => ({ category, count }));
+    }
+
+    function getCategory(entry) {
+      return (entry["分類"] ?? "").trim();
+    }
+
     function createCard(entry) {
       const card = document.createElement("article");
       card.className = "oll-card";
+      card.setAttribute("data-category", getCategory(entry));
 
       const imageWrap = document.createElement("div");
       imageWrap.className = "oll-image-wrap";
@@ -296,20 +374,24 @@
       no.className = "oll-no";
       no.textContent = `#${entry["No."]}`;
 
-      const name = document.createElement("h2");
-      name.className = "oll-name";
-      name.textContent = entry["通称"] || "—";
-
-      const category = document.createElement("p");
-      category.className = "oll-category";
-      const rate = entry["出現率"] ? ` · ${entry["出現率"]}` : "";
-      category.textContent = `${entry["分類"] || ""}${rate}`.trim() || " ";
-
       const algorithm = document.createElement("p");
       algorithm.className = "oll-algorithm";
       algorithm.textContent = entry["手順"] || "—";
 
-      body.append(no, name, category, algorithm);
+      const meta = document.createElement("div");
+      meta.className = "oll-meta";
+
+      const categoryLine = document.createElement("p");
+      categoryLine.className = "oll-category";
+      const rate = entry["出現率"] ? ` · ${entry["出現率"]}` : "";
+      categoryLine.textContent = `${getCategory(entry)}${rate}`.trim() || "—";
+
+      const name = document.createElement("p");
+      name.className = "oll-name";
+      name.textContent = entry["通称"] || "—";
+
+      meta.append(categoryLine, name);
+      body.append(no, algorithm, meta);
 
       if (entry["メモ"] && entry["メモ"] !== "メモ") {
         const memo = document.createElement("p");
@@ -337,10 +419,70 @@
       return card;
     }
 
+    function createTagFilter(categories, onSelect) {
+      const container = document.createElement("div");
+      container.className = "tag-filter";
+      container.setAttribute("role", "group");
+      container.setAttribute("aria-label", "分類で絞り込み");
+
+      const allButton = document.createElement("button");
+      allButton.type = "button";
+      allButton.className = "tag-btn active";
+      allButton.setAttribute("data-tag", "");
+      allButton.textContent = "すべて";
+      allButton.addEventListener("click", () => onSelect(""));
+      container.append(allButton);
+
+      for (const { category, count } of categories) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "tag-btn";
+        button.setAttribute("data-tag", category);
+        button.textContent = `${category} (${count})`;
+        button.addEventListener("click", () => onSelect(category));
+        container.append(button);
+      }
+
+      return container;
+    }
+
+    function getTagValue(button) {
+      return button.getAttribute("data-tag") ?? "";
+    }
+
+    function applyTagFilter(selectedTag, gridEl, summary, emptyFilter, tagFilter) {
+      const cards = gridEl.querySelectorAll(".oll-card");
+      let visibleCount = 0;
+
+      for (const card of cards) {
+        const category = card.getAttribute("data-category") ?? "";
+        const visible = selectedTag === "" || category === selectedTag;
+        card.classList.toggle("is-filtered-out", !visible);
+        if (visible) {
+          visibleCount += 1;
+        }
+      }
+
+      for (const button of tagFilter.querySelectorAll(".tag-btn")) {
+        button.classList.toggle("active", getTagValue(button) === selectedTag);
+      }
+
+      emptyFilter.hidden = visibleCount > 0;
+      gridEl.hidden = visibleCount === 0;
+
+      if (selectedTag) {
+        summary.textContent = `${visibleCount} / ${cards.length} ケース（${selectedTag}）`;
+      } else {
+        summary.textContent = `${cards.length} ケース`;
+      }
+    }
+
     async function init() {
       const status = document.getElementById("status");
       const grid = document.getElementById("oll-grid");
       const summary = document.getElementById("summary");
+      const tagFilterRoot = document.getElementById("tag-filter");
+      const emptyFilter = document.getElementById("empty-filter");
 
       try {
         const response = await fetch("oll_def.csv");
@@ -364,6 +506,13 @@
           fragment.append(createCard(entry));
         }
         grid.append(fragment);
+
+        const categories = uniqueCategories(entries);
+        const tagFilter = createTagFilter(categories, (tag) => {
+          applyTagFilter(tag, grid, summary, emptyFilter, tagFilter);
+        });
+        tagFilterRoot.replaceWith(tagFilter);
+        tagFilter.hidden = false;
       } catch (error) {
         status.className = "status error";
         status.textContent = `${error.message}。ローカルサーバー経由で開いてください（例: \`npx serve .\`）。`;
