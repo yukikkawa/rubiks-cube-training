@@ -18,6 +18,8 @@
       --bg: #f4f5f7;
       --card: #fff;
       --accent: #1a73e8;
+      --tag-filter-transition-duration: 0.3s;
+      --tag-filter-transition: opacity var(--tag-filter-transition-duration) ease, max-height var(--tag-filter-transition-duration) ease, margin-top var(--tag-filter-transition-duration) ease, visibility var(--tag-filter-transition-duration) ease;
     }
 
     * {
@@ -59,6 +61,17 @@
       flex-wrap: wrap;
       gap: 8px;
       margin-top: 14px;
+      transition: var(--tag-filter-transition);
+      max-height: 500px;
+      overflow: hidden;
+    }
+
+    .tag-filter.is-hidden {
+      max-height: 0;
+      margin-top: 0;
+      opacity: 0;
+      pointer-events: none;
+      visibility: hidden;
     }
 
     .tag-filter[hidden] {
@@ -513,13 +526,84 @@
         });
         tagFilterRoot.replaceWith(tagFilter);
         tagFilter.hidden = false;
+
+        // スクロール連動のタグフィルター表示/非表示
+        setupScrollHideTagFilter(tagFilter);
       } catch (error) {
         status.className = "status error";
         status.textContent = `${error.message}。ローカルサーバー経由で開いてください（例: \`npx serve .\`）。`;
         summary.textContent = "読み込み失敗";
       }
     }
+    
+    function setupScrollHideTagFilter(tagFilterElement) {
+        let lastScrollY = window.pageYOffset || document.documentElement.scrollTop;
+        let isHidden = false;
+        let isTransitioning = false; // 状態変更中フラグ
+        
+        // 誤作動防止のための閾値（微小なスクロールで反応しないようにする）
+        const THRESHOLD = 10; 
+        // ヘッダーや要素自体の高さを考慮した最低スクロール量
+        const TOP_OFFSET = 100; 
+        // CSSの --tag-filter-transition-duration から取得（秒 → ミリ秒）
+        const durationStr = getComputedStyle(document.documentElement).getPropertyValue('--tag-filter-transition-duration').trim();
+        const TRANSITION_DURATION = parseFloat(durationStr) * 1000;
 
+        window.addEventListener("scroll", () => {
+            // 状態変更中はスクロールイベントを無視
+            if (isTransitioning) {
+                return;
+            }
+
+            const currentScrollY = window.pageYOffset || document.documentElement.scrollTop;
+            const delta = currentScrollY - lastScrollY;
+
+            // ページの最上部付近では常に表示
+            if (currentScrollY <= TOP_OFFSET) {
+                if (isHidden) {
+                    isTransitioning = true;
+                    tagFilterElement.classList.remove("is-hidden");
+                    isHidden = false;
+                    setTimeout(() => {
+                        isTransitioning = false;
+                        lastScrollY = window.pageYOffset || document.documentElement.scrollTop;
+                    }, TRANSITION_DURATION);
+                }
+                lastScrollY = currentScrollY;
+                return;
+            }
+
+            // スクロール量が小さすぎる場合は無視（手ぶれ対策）
+            if (Math.abs(delta) < THRESHOLD) {
+                return;
+            }
+
+            // 下スクロール ＝ 非表示 / 上スクロール ＝ 表示
+            if (delta > 0) {
+                if (!isHidden) {
+                    isTransitioning = true;
+                    tagFilterElement.classList.add("is-hidden");
+                    isHidden = true;
+                    setTimeout(() => {
+                        isTransitioning = false;
+                        lastScrollY = window.pageYOffset || document.documentElement.scrollTop;
+                    }, TRANSITION_DURATION);
+                }
+            } else if (delta < 0) {
+                if (isHidden) {
+                    isTransitioning = true;
+                    tagFilterElement.classList.remove("is-hidden");
+                    isHidden = false;
+                    setTimeout(() => {
+                        isTransitioning = false;
+                        lastScrollY = window.pageYOffset || document.documentElement.scrollTop;
+                    }, TRANSITION_DURATION);
+                }
+            }
+
+            lastScrollY = currentScrollY;
+        });
+    }
     init();
   </script>
 </body>
