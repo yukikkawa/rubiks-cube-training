@@ -544,10 +544,10 @@
         // 誤作動防止のための閾値（微小なスクロールで反応しないようにする）
         const THRESHOLD = 10; 
         // ヘッダーや要素自体の高さを考慮した最低スクロール量
-        const TOP_OFFSET = 100; 
+        const TOP_OFFSET = 50; 
         // CSSの --tag-filter-transition-duration から取得（秒 → ミリ秒）
         const durationStr = getComputedStyle(document.documentElement).getPropertyValue('--tag-filter-transition-duration').trim();
-        const TRANSITION_DURATION = parseFloat(durationStr) * 1000;
+        const TRANSITION_DURATION = parseFloat(durationStr) * 1000 * 1.05;
 
         window.addEventListener("scroll", () => {
             // 状態変更中はスクロールイベントを無視
