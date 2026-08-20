@@ -372,6 +372,19 @@
       return (entry["分類"] ?? "").trim();
     }
 
+    function getAufRotation(auf) {
+      switch ((auf ?? "").trim().toLowerCase()) {
+        case "y":
+          return 90;
+        case "y'":
+          return -90;
+        case "y2":
+          return 180;
+        default:
+          return 0;
+      }
+    }
+
     function createCard(entry) {
       const card = document.createElement("article");
       card.className = "oll-card";
@@ -420,6 +433,7 @@
           const img = document.createElement("img");
           img.src = src;
           img.alt = `OLL ${entry["No."]}`;
+          img.style.transform = `rotate(${getAufRotation(entry["AUF"])}deg)`;
           imageWrap.append(img);
         } else {
           const placeholder = document.createElement("div");
@@ -560,6 +574,10 @@
 
             // ページの最上部付近では常に表示
             if (currentScrollY <= TOP_OFFSET) {
+                if (lastScrollY < TOP_OFFSET){
+                    return;
+                }
+
                 if (isHidden) {
                     isTransitioning = true;
                     tagFilterElement.classList.remove("is-hidden");
