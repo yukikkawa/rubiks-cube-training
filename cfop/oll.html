@@ -357,7 +357,7 @@
     function uniqueCategories(entries) {
       const counts = new Map();
       for (const entry of entries) {
-        const category = getCategory(entry);
+        const category = getShape(entry);
         if (!category) {
           continue;
         }
@@ -368,8 +368,8 @@
         .map(([category, count]) => ({ category, count }));
     }
 
-    function getCategory(entry) {
-      return (entry["分類"] ?? "").trim();
+    function getShape(entry) {
+      return (entry["形状"] ?? "").trim();
     }
 
     function getAufRotation(auf) {
@@ -388,7 +388,7 @@
     function createCard(entry) {
       const card = document.createElement("article");
       card.className = "oll-card";
-      card.setAttribute("data-category", getCategory(entry));
+      card.setAttribute("data-category", getShape(entry));
 
       const imageWrap = document.createElement("div");
       imageWrap.className = "oll-image-wrap";
@@ -410,7 +410,7 @@
       const categoryLine = document.createElement("p");
       categoryLine.className = "oll-category";
       const rate = entry["出現率"] ? ` · ${entry["出現率"]}` : "";
-      categoryLine.textContent = `${getCategory(entry)}${rate}`.trim() || "—";
+      categoryLine.textContent = `${getShape(entry)}${rate}`.trim() || "—";
 
       const name = document.createElement("p");
       name.className = "oll-name";
@@ -450,7 +450,7 @@
       const container = document.createElement("div");
       container.className = "tag-filter";
       container.setAttribute("role", "group");
-      container.setAttribute("aria-label", "分類で絞り込み");
+      container.setAttribute("aria-label", "形状で絞り込み");
 
       const allButton = document.createElement("button");
       allButton.type = "button";
