@@ -56,6 +56,39 @@
       color: var(--muted);
     }
 
+    .filter-modes {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .mode-btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      line-height: 1.2;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .mode-btn:hover {
+      border-color: #b8c4d9;
+      background: #f8faff;
+    }
+
+    .mode-btn.active {
+      border-color: var(--accent);
+      background: #e8f0fe;
+      color: var(--accent);
+      font-weight: 700;
+    }
+
     .tag-filter {
       display: flex;
       flex-wrap: wrap;
@@ -248,6 +281,11 @@
   <header>
     <h1>OLL 手順一覧</h1>
     <p id="summary">読み込み中…</p>
+    <div id="filter-modes" class="filter-modes" role="group" aria-label="絞り込み方法">
+      <button class="mode-btn active" type="button" data-mode="all">すべて</button>
+      <button class="mode-btn" type="button" data-mode="shape">形状</button>
+      <button class="mode-btn" type="button" data-mode="order">覚える順</button>
+    </div>
     <div id="tag-filter" class="tag-filter" hidden></div>
   </header>
   <main>
@@ -354,22 +392,26 @@
       });
     }
 
-    function uniqueCategories(entries) {
+    function uniqueValues(entries, key) {
       const counts = new Map();
       for (const entry of entries) {
-        const category = getShape(entry);
-        if (!category) {
+        const value = (entry[key] ?? "").trim();
+        if (!value) {
           continue;
         }
-        counts.set(category, (counts.get(category) ?? 0) + 1);
+        counts.set(value, (counts.get(value) ?? 0) + 1);
       }
       return [...counts.entries()]
         .sort(([a], [b]) => a.localeCompare(b, "ja"))
-        .map(([category, count]) => ({ category, count }));
+        .map(([value, count]) => ({ value, count }));
     }
 
     function getShape(entry) {
       return (entry["形状"] ?? "").trim();
+    }
+
+    function getLearnOrder(entry) {
+      return (entry["覚える順"] ?? "").trim();
     }
 
     function getAufRotation(auf) {
@@ -388,7 +430,8 @@
     function createCard(entry) {
       const card = document.createElement("article");
       card.className = "oll-card";
-      card.setAttribute("data-category", getShape(entry));
+      card.setAttribute("data-shape", getShape(entry));
+      card.setAttribute("data-order", getLearnOrder(entry));
 
       const imageWrap = document.createElement("div");
       imageWrap.className = "oll-image-wrap";
@@ -446,11 +489,11 @@
       return card;
     }
 
-    function createTagFilter(categories, onSelect) {
+    function createTagFilter(values, label, onSelect) {
       const container = document.createElement("div");
       container.className = "tag-filter";
       container.setAttribute("role", "group");
-      container.setAttribute("aria-label", "形状で絞り込み");
+      container.setAttribute("aria-label", `${label}で絞り込み`);
 
       const allButton = document.createElement("button");
       allButton.type = "button";
@@ -460,13 +503,13 @@
       allButton.addEventListener("click", () => onSelect(""));
       container.append(allButton);
 
-      for (const { category, count } of categories) {
+      for (const { value, count } of values) {
         const button = document.createElement("button");
         button.type = "button";
         button.className = "tag-btn";
-        button.setAttribute("data-tag", category);
-        button.textContent = `${category} (${count})`;
-        button.addEventListener("click", () => onSelect(category));
+        button.setAttribute("data-tag", value);
+        button.textContent = `${value} (${count})`;
+        button.addEventListener("click", () => onSelect(value));
         container.append(button);
       }
 
@@ -477,13 +520,14 @@
       return button.getAttribute("data-tag") ?? "";
     }
 
-    function applyTagFilter(selectedTag, gridEl, summary, emptyFilter, tagFilter) {
+    function applyTagFilter(selectedTag, mode, gridEl, summary, emptyFilter, tagFilter) {
       const cards = gridEl.querySelectorAll(".oll-card");
       let visibleCount = 0;
+      const dataAttribute = mode === "shape" ? "data-shape" : "data-order";
 
       for (const card of cards) {
-        const category = card.getAttribute("data-category") ?? "";
-        const visible = selectedTag === "" || category === selectedTag;
+        const value = card.getAttribute(dataAttribute) ?? "";
+        const visible = selectedTag === "" || value === selectedTag;
         card.classList.toggle("is-filtered-out", !visible);
         if (visible) {
           visibleCount += 1;
@@ -509,6 +553,7 @@
       const grid = document.getElementById("oll-grid");
       const summary = document.getElementById("summary");
       const tagFilterRoot = document.getElementById("tag-filter");
+      const modeButtons = document.querySelectorAll(".mode-btn");
       const emptyFilter = document.getElementById("empty-filter");
 
       try {
@@ -534,15 +579,39 @@
         }
         grid.append(fragment);
 
-        const categories = uniqueCategories(entries);
-        const tagFilter = createTagFilter(categories, (tag) => {
-          applyTagFilter(tag, grid, summary, emptyFilter, tagFilter);
-        });
-        tagFilterRoot.replaceWith(tagFilter);
-        tagFilter.hidden = false;
+        let tagFilter = tagFilterRoot;
+        let selectedMode = "all";
 
-        // スクロール連動のタグフィルター表示/非表示
-        setupScrollHideTagFilter(tagFilter);
+        const selectMode = (mode) => {
+          selectedMode = mode;
+          for (const button of modeButtons) {
+            button.classList.toggle("active", button.dataset.mode === mode);
+          }
+
+          if (mode === "all") {
+            tagFilter.hidden = true;
+            tagFilter.classList.remove("is-hidden");
+            applyTagFilter("", mode, grid, summary, emptyFilter, tagFilter);
+            return;
+          }
+
+          const key = mode === "shape" ? "形状" : "覚える順";
+          const label = mode === "shape" ? "形状" : "覚える順";
+          const nextTagFilter = createTagFilter(uniqueValues(entries, key), label, (tag) => {
+            applyTagFilter(tag, selectedMode, grid, summary, emptyFilter, nextTagFilter);
+          });
+          tagFilter.replaceWith(nextTagFilter);
+          tagFilter = nextTagFilter;
+          tagFilter.hidden = false;
+          setupScrollHideTagFilter(tagFilter);
+          applyTagFilter("", mode, grid, summary, emptyFilter, tagFilter);
+        };
+
+        for (const button of modeButtons) {
+          button.addEventListener("click", () => selectMode(button.dataset.mode));
+        }
+
+        selectMode("all");
       } catch (error) {
         status.className = "status error";
         status.textContent = `${error.message}。ローカルサーバー経由で開いてください（例: \`npx serve .\`）。`;
