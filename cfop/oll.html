@@ -138,6 +138,15 @@
       font-weight: 700;
     }
 
+    .tag-btn.learn-order {
+      color: var(--text);
+    }
+
+    .tag-stars,
+    .oll-learn-order-stars {
+      color: #eab308;
+    }
+
     .empty-filter {
       padding: 24px 16px;
       text-align: center;
@@ -256,6 +265,11 @@
 
     .oll-name {
       font-weight: 500;
+    }
+
+    .oll-learn-order {
+      color: var(--text);
+      letter-spacing: 0;
     }
 
     .oll-memo {
@@ -414,6 +428,15 @@
       return (entry["覚える順"] ?? "").trim();
     }
 
+    function getStars(value) {
+      const order = Number.parseInt(value, 10);
+      return Number.isInteger(order) && order > 0 ? "★".repeat(order) : "";
+    }
+
+    function getLearnOrderStars(entry) {
+      return getStars(getLearnOrder(entry));
+    }
+
     function getAufRotation(auf) {
       switch ((auf ?? "").trim().toLowerCase()) {
         case "y":
@@ -459,7 +482,20 @@
       name.className = "oll-name";
       name.textContent = entry["通称"] || "—";
 
-      meta.append(categoryLine, name);
+      const learnOrder = document.createElement("p");
+      learnOrder.className = "oll-category oll-learn-order";
+      const stars = getLearnOrderStars(entry);
+      if (stars) {
+        learnOrder.append("覚える順: ");
+        const starsElement = document.createElement("span");
+        starsElement.className = "oll-learn-order-stars";
+        starsElement.textContent = stars;
+        learnOrder.append(starsElement);
+      } else {
+        learnOrder.textContent = "—";
+      }
+
+      meta.append(categoryLine, name, learnOrder);
       body.append(no, algorithm, meta);
 
       if (entry["メモ"] && entry["メモ"] !== "メモ") {
@@ -507,8 +543,20 @@
         const button = document.createElement("button");
         button.type = "button";
         button.className = "tag-btn";
+        if (label === "覚える順") {
+          button.classList.add("learn-order");
+        }
         button.setAttribute("data-tag", value);
-        button.textContent = `${value} (${count})`;
+        const displayValue = label === "覚える順" ? getStars(value) || value : value;
+        if (label === "覚える順" && getStars(value)) {
+          const starsElement = document.createElement("span");
+          starsElement.className = "tag-stars";
+          starsElement.textContent = displayValue;
+          button.append(starsElement);
+          button.append(` (${count})`);
+        } else {
+          button.textContent = `${displayValue} (${count})`;
+        }
         button.addEventListener("click", () => onSelect(value));
         container.append(button);
       }
@@ -518,6 +566,24 @@
 
     function getTagValue(button) {
       return button.getAttribute("data-tag") ?? "";
+    }
+
+    const FILTER_STATE_KEY = "oll-filter-state";
+
+    function loadFilterState() {
+      try {
+        return JSON.parse(localStorage.getItem(FILTER_STATE_KEY) ?? "{}") || {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveFilterState(state) {
+      try {
+        localStorage.setItem(FILTER_STATE_KEY, JSON.stringify(state));
+      } catch {
+        // localStorageが利用できない環境では保存しない
+      }
     }
 
     function applyTagFilter(selectedTag, mode, gridEl, summary, emptyFilter, tagFilter) {
@@ -580,10 +646,13 @@
         grid.append(fragment);
 
         let tagFilter = tagFilterRoot;
+        const filterState = loadFilterState();
         let selectedMode = "all";
 
         const selectMode = (mode) => {
           selectedMode = mode;
+          filterState.mode = mode;
+          saveFilterState(filterState);
           for (const button of modeButtons) {
             button.classList.toggle("active", button.dataset.mode === mode);
           }
@@ -597,21 +666,26 @@
 
           const key = mode === "shape" ? "形状" : "覚える順";
           const label = mode === "shape" ? "形状" : "覚える順";
-          const nextTagFilter = createTagFilter(uniqueValues(entries, key), label, (tag) => {
+          const values = uniqueValues(entries, key);
+          const savedTag = values.some(({ value }) => value === filterState[mode]) ? filterState[mode] : "";
+          const nextTagFilter = createTagFilter(values, label, (tag) => {
+            filterState[mode] = tag;
+            saveFilterState(filterState);
             applyTagFilter(tag, selectedMode, grid, summary, emptyFilter, nextTagFilter);
           });
           tagFilter.replaceWith(nextTagFilter);
           tagFilter = nextTagFilter;
           tagFilter.hidden = false;
           setupScrollHideTagFilter(tagFilter);
-          applyTagFilter("", mode, grid, summary, emptyFilter, tagFilter);
+          applyTagFilter(savedTag, mode, grid, summary, emptyFilter, tagFilter);
         };
 
         for (const button of modeButtons) {
           button.addEventListener("click", () => selectMode(button.dataset.mode));
         }
 
-        selectMode("all");
+        const savedMode = ["all", "shape", "order"].includes(filterState.mode) ? filterState.mode : "all";
+        selectMode(savedMode);
       } catch (error) {
         status.className = "status error";
         status.textContent = `${error.message}。ローカルサーバー経由で開いてください（例: \`npx serve .\`）。`;
