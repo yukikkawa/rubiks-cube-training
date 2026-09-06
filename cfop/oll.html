@@ -227,6 +227,13 @@
       min-width: 0;
     }
 
+    .oll-card-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
     .oll-no {
       display: inline-block;
       font-size: 0.75rem;
@@ -236,6 +243,11 @@
       border-radius: 999px;
       padding: 2px 8px;
       margin-bottom: 8px;
+    }
+
+    .oll-card-head .oll-no {
+      flex: 0 0 auto;
+      margin-bottom: 0;
     }
 
     .oll-algorithm {
@@ -265,6 +277,49 @@
 
     .oll-name {
       font-weight: 500;
+    }
+
+    .oll-editable {
+      width: 100%;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      line-height: inherit;
+      padding: 1px 3px;
+    }
+
+    .oll-editable:hover,
+    .oll-editable:focus {
+      border-color: var(--border);
+      background: var(--card);
+      outline: none;
+    }
+
+    .oll-editable::placeholder {
+      color: var(--muted);
+      opacity: 0.8;
+    }
+
+    .oll-name-input {
+      flex: 1;
+      width: auto;
+      min-width: 0;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+
+    .oll-order-input {
+      width: 4.5rem;
+      color: var(--text);
+    }
+
+    .oll-memo-input {
+      display: block;
+      font-size: 0.85rem;
+      min-height: 1.5em;
+      resize: vertical;
     }
 
     .oll-learn-order {
@@ -310,6 +365,25 @@
 
   <script>
     const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "gif", "svg"];
+    const ENTRY_EDITS_KEY = "oll-entry-edits";
+
+    function loadEntryEdits() {
+      try {
+        return JSON.parse(localStorage.getItem(ENTRY_EDITS_KEY) ?? "{}") || {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveEntryEdit(no, field, value) {
+      try {
+        const edits = loadEntryEdits();
+        edits[no] = { ...(edits[no] ?? {}), [field]: value };
+        localStorage.setItem(ENTRY_EDITS_KEY, JSON.stringify(edits));
+      } catch {
+        // localStorageが利用できない環境では保存しない
+      }
+    }
 
     function parseCsv(text) {
       const rows = [];
@@ -470,6 +544,18 @@
       algorithm.className = "oll-algorithm";
       algorithm.textContent = entry["手順"] || "—";
 
+      const name = document.createElement("input");
+      name.className = "oll-editable oll-name-input";
+      name.type = "text";
+      name.value = entry["通称"] || "";
+      name.placeholder = "通称";
+      name.setAttribute("aria-label", `OLL ${entry["No."]} の通称`);
+      name.addEventListener("change", () => saveEntryEdit(entry["No."], "通称", name.value));
+
+      const cardHead = document.createElement("div");
+      cardHead.className = "oll-card-head";
+      cardHead.append(no, name);
+
       const meta = document.createElement("div");
       meta.className = "oll-meta";
 
@@ -478,32 +564,41 @@
       const rate = entry["出現率"] ? ` · ${entry["出現率"]}` : "";
       categoryLine.textContent = `${getShape(entry)}${rate}`.trim() || "—";
 
-      const name = document.createElement("p");
-      name.className = "oll-name";
-      name.textContent = entry["通称"] || "—";
-
       const learnOrder = document.createElement("p");
       learnOrder.className = "oll-category oll-learn-order";
-      const stars = getLearnOrderStars(entry);
-      if (stars) {
-        learnOrder.append("覚える順: ");
-        const starsElement = document.createElement("span");
-        starsElement.className = "oll-learn-order-stars";
+      const learnOrderLabel = document.createTextNode("覚える順: ");
+      const orderInput = document.createElement("input");
+      orderInput.className = "oll-editable oll-order-input";
+      orderInput.type = "number";
+      orderInput.min = "1";
+      orderInput.step = "1";
+      orderInput.value = getLearnOrder(entry);
+      orderInput.placeholder = "未設定";
+      orderInput.setAttribute("aria-label", `OLL ${entry["No."]} の覚える順`);
+      const starsElement = document.createElement("span");
+      starsElement.className = "oll-learn-order-stars";
+      starsElement.textContent = getLearnOrderStars(entry);
+      learnOrder.append(learnOrderLabel, starsElement, " ", orderInput);
+
+      orderInput.addEventListener("input", () => {
+        const value = orderInput.value.trim();
+        const stars = getStars(value);
+        card.setAttribute("data-order", value);
         starsElement.textContent = stars;
-        learnOrder.append(starsElement);
-      } else {
-        learnOrder.textContent = "—";
-      }
+        saveEntryEdit(entry["No."], "覚える順", value);
+      });
 
-      meta.append(categoryLine, name, learnOrder);
-      body.append(no, algorithm, meta);
+      meta.append(categoryLine, learnOrder);
+      body.append(cardHead, algorithm, meta);
 
-      if (entry["メモ"] && entry["メモ"] !== "メモ") {
-        const memo = document.createElement("p");
-        memo.className = "oll-memo";
-        memo.textContent = entry["メモ"];
-        body.append(memo);
-      }
+      const memo = document.createElement("textarea");
+      memo.className = "oll-editable oll-memo-input";
+      memo.value = entry["メモ"] === "メモ" ? "" : (entry["メモ"] ?? "");
+      memo.placeholder = "メモ";
+      memo.rows = 1;
+      memo.setAttribute("aria-label", `OLL ${entry["No."]} のメモ`);
+      memo.addEventListener("change", () => saveEntryEdit(entry["No."], "メモ", memo.value));
+      body.append(memo);
 
       card.append(imageWrap, body);
 
@@ -633,6 +728,18 @@
 
         if (entries.length === 0) {
           throw new Error("oll_def.csv にデータがありません");
+        }
+
+        const entryEdits = loadEntryEdits();
+        for (const entry of entries) {
+          const edits = entryEdits[entry["No."]];
+          if (edits) {
+            for (const field of ["通称", "メモ", "覚える順"]) {
+              if (typeof edits[field] === "string") {
+                entry[field] = edits[field];
+              }
+            }
+          }
         }
 
         status.hidden = true;
