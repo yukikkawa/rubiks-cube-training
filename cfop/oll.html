@@ -186,7 +186,7 @@
       display: grid;
       grid-template-columns: 120px 1fr;
       gap: 12px;
-      align-items: center;
+      align-items: start;
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: 10px;
@@ -225,6 +225,8 @@
 
     .oll-body {
       min-width: 0;
+      display: flex;
+      flex-direction: column;
     }
 
     .oll-card-head {
@@ -317,9 +319,14 @@
 
     .oll-memo-input {
       display: block;
+      grid-column: 1 / -1;
       font-size: 0.85rem;
-      min-height: 1.5em;
-      resize: vertical;
+      min-height: 2em;
+      overflow: hidden;
+      resize: none;
+      margin-top: 0;
+      padding-top: 3px;
+      padding-bottom: 3px;
     }
 
     .oll-learn-order {
@@ -597,10 +604,17 @@
       memo.placeholder = "メモ";
       memo.rows = 1;
       memo.setAttribute("aria-label", `OLL ${entry["No."]} のメモ`);
-      memo.addEventListener("change", () => saveEntryEdit(entry["No."], "メモ", memo.value));
-      body.append(memo);
+      const resizeMemo = () => {
+        memo.style.height = "auto";
+        memo.style.height = `${memo.scrollHeight}px`;
+      };
+      memo.addEventListener("input", () => {
+        resizeMemo();
+        saveEntryEdit(entry["No."], "メモ", memo.value);
+      });
+      resizeMemo();
 
-      card.append(imageWrap, body);
+      card.append(imageWrap, body, memo);
 
       loadImage(imageCandidates(entry["No."])).then((src) => {
         if (src) {
