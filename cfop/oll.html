@@ -325,8 +325,8 @@
       overflow: hidden;
       resize: none;
       margin-top: 0;
-      padding-top: 3px;
-      padding-bottom: 3px;
+      padding-top: 0px;
+      padding-bottom: 0px;
     }
 
     .oll-learn-order {
@@ -338,6 +338,53 @@
       margin: 8px 0 0;
       font-size: 0.8rem;
       color: var(--muted);
+    }
+
+    .oll-tags {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 3px 4px;
+      margin-top: 4px;
+    }
+
+    .oll-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 1px 6px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 0.75rem;
+    }
+
+    .oll-tag-remove {
+      appearance: none;
+      border: 0;
+      padding: 0;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font: inherit;
+      line-height: 1;
+    }
+
+    .oll-tag-input {
+      width: 7rem;
+      font-size: 0.75rem;
+    }
+
+    .oll-tag-add {
+      appearance: none;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 6px;
+      background: var(--card);
+      color: var(--muted);
+      cursor: pointer;
+      font: inherit;
+      font-size: 0.75rem;
     }
 
     @media (max-width: 520px) {
@@ -361,6 +408,7 @@
       <button class="mode-btn active" type="button" data-mode="all">すべて</button>
       <button class="mode-btn" type="button" data-mode="shape">形状</button>
       <button class="mode-btn" type="button" data-mode="order">覚える順</button>
+      <button class="mode-btn" type="button" data-mode="tag">タグ</button>
     </div>
     <div id="tag-filter" class="tag-filter" hidden></div>
   </header>
@@ -390,6 +438,20 @@
       } catch {
         // localStorageが利用できない環境では保存しない
       }
+    }
+
+    function getEntryTags(entry) {
+      const csvTags = ["タグ1", "タグ2", "タグ3"]
+        .map((key) => (entry[key] ?? "").trim())
+        .filter(Boolean);
+      const savedTags = Array.isArray(entry["タグ"])
+        ? entry["タグ"].map((tag) => String(tag).trim()).filter(Boolean)
+        : [];
+      return [...new Set([...csvTags, ...savedTags])];
+    }
+
+    function getAllTags(entries) {
+      return new Set(entries.flatMap((entry) => getEntryTags(entry)));
     }
 
     function parseCsv(text) {
@@ -531,11 +593,12 @@
       }
     }
 
-    function createCard(entry) {
+    function createCard(entry, allTags) {
       const card = document.createElement("article");
       card.className = "oll-card";
       card.setAttribute("data-shape", getShape(entry));
       card.setAttribute("data-order", getLearnOrder(entry));
+      card.dataset.tags = JSON.stringify(getEntryTags(entry));
 
       const imageWrap = document.createElement("div");
       imageWrap.className = "oll-image-wrap";
@@ -614,7 +677,99 @@
       });
       resizeMemo();
 
-      card.append(imageWrap, body, memo);
+      const tags = getEntryTags(entry);
+      const tagsElement = document.createElement("div");
+      tagsElement.className = "oll-tags";
+      tagsElement.setAttribute("data-no", entry["No."]);
+
+      const tagInput = document.createElement("input");
+      tagInput.className = "oll-editable oll-tag-input";
+      tagInput.type = "text";
+      tagInput.placeholder = "タグを追加";
+      tagInput.setAttribute("list", `tag-options-${entry["No."]}`);
+      tagInput.setAttribute("aria-label", `OLL ${entry["No."]} にタグを追加`);
+
+      const tagOptions = document.createElement("datalist");
+      tagOptions.id = `tag-options-${entry["No."]}`;
+      const refreshTagOptions = () => {
+        tagOptions.replaceChildren();
+        [...allTags]
+          .filter((tag) => !tags.includes(tag))
+          .sort((a, b) => a.localeCompare(b, "ja"))
+          .forEach((tag) => {
+          const option = document.createElement("option");
+          option.value = tag;
+          tagOptions.append(option);
+          });
+      };
+      refreshTagOptions();
+
+      const saveTags = () => {
+        card.dataset.tags = JSON.stringify(tags);
+        saveEntryEdit(entry["No."], "タグ", tags);
+      };
+
+      const renderTags = () => {
+        tagsElement.querySelectorAll(".oll-tag").forEach((tag) => tag.remove());
+        for (const tag of tags) {
+          const tagElement = document.createElement("span");
+          tagElement.className = "oll-tag";
+          tagElement.append(document.createTextNode(tag));
+
+          const removeButton = document.createElement("button");
+          removeButton.className = "oll-tag-remove";
+          removeButton.type = "button";
+          removeButton.textContent = "×";
+          removeButton.setAttribute("aria-label", `${tag}を削除`);
+          removeButton.addEventListener("click", () => {
+            tags.splice(tags.indexOf(tag), 1);
+            refreshTagOptions();
+            renderTags();
+            saveTags();
+          });
+          tagElement.append(removeButton);
+          tagsElement.prepend(tagElement);
+        }
+      };
+
+      const addTag = () => {
+        const tag = tagInput.value.trim();
+        if (!tag || tags.includes(tag)) {
+          tagInput.value = "";
+          return;
+        }
+        tags.push(tag);
+        allTags.add(tag);
+        refreshTagOptions();
+        document.querySelectorAll("datalist[id^='tag-options-']").forEach((list) => {
+          if (list !== tagOptions && ![...list.options].some((option) => option.value === tag)) {
+            const option = document.createElement("option");
+            option.value = tag;
+            list.append(option);
+          }
+        });
+        tagInput.value = "";
+        renderTags();
+        saveTags();
+      };
+
+      const addTagButton = document.createElement("button");
+      addTagButton.className = "oll-tag-add";
+      addTagButton.type = "button";
+      addTagButton.textContent = "追加";
+      addTagButton.addEventListener("click", addTag);
+      tagInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          addTag();
+        }
+      });
+
+      tagsElement.append(tagInput, addTagButton);
+      renderTags();
+
+      body.append(tagsElement);
+      card.append(imageWrap, body, memo, tagOptions);
 
       loadImage(imageCandidates(entry["No."])).then((src) => {
         if (src) {
@@ -701,8 +856,10 @@
       const dataAttribute = mode === "shape" ? "data-shape" : "data-order";
 
       for (const card of cards) {
-        const value = card.getAttribute(dataAttribute) ?? "";
-        const visible = selectedTag === "" || value === selectedTag;
+        const value = mode === "tag"
+          ? JSON.parse(card.dataset.tags ?? "[]")
+          : [card.getAttribute(dataAttribute) ?? ""];
+        const visible = selectedTag === "" || value.includes(selectedTag);
         card.classList.toggle("is-filtered-out", !visible);
         if (visible) {
           visibleCount += 1;
@@ -748,8 +905,10 @@
         for (const entry of entries) {
           const edits = entryEdits[entry["No."]];
           if (edits) {
-            for (const field of ["通称", "メモ", "覚える順"]) {
+            for (const field of ["通称", "メモ", "覚える順", "タグ"]) {
               if (typeof edits[field] === "string") {
+                entry[field] = edits[field];
+              } else if (field === "タグ" && Array.isArray(edits[field])) {
                 entry[field] = edits[field];
               }
             }
@@ -760,9 +919,10 @@
         grid.hidden = false;
         summary.textContent = `${entries.length} ケース`;
 
+        const allTags = getAllTags(entries);
         const fragment = document.createDocumentFragment();
         for (const entry of entries) {
-          fragment.append(createCard(entry));
+          fragment.append(createCard(entry, allTags));
         }
         grid.append(fragment);
 
@@ -785,9 +945,14 @@
             return;
           }
 
-          const key = mode === "shape" ? "形状" : "覚える順";
-          const label = mode === "shape" ? "形状" : "覚える順";
-          const values = uniqueValues(entries, key);
+          const key = mode === "shape" ? "形状" : mode === "order" ? "覚える順" : null;
+          const label = mode === "shape" ? "形状" : mode === "order" ? "覚える順" : "タグ";
+          const values = mode === "tag"
+            ? [...allTags].sort((a, b) => a.localeCompare(b, "ja")).map((value) => ({
+              value,
+              count: entries.filter((entry) => getEntryTags(entry).includes(value)).length
+            }))
+            : uniqueValues(entries, key);
           const savedTag = values.some(({ value }) => value === filterState[mode]) ? filterState[mode] : "";
           const nextTagFilter = createTagFilter(values, label, (tag) => {
             filterState[mode] = tag;
@@ -805,7 +970,7 @@
           button.addEventListener("click", () => selectMode(button.dataset.mode));
         }
 
-        const savedMode = ["all", "shape", "order"].includes(filterState.mode) ? filterState.mode : "all";
+        const savedMode = ["all", "shape", "order", "tag"].includes(filterState.mode) ? filterState.mode : "all";
         selectMode(savedMode);
       } catch (error) {
         status.className = "status error";
