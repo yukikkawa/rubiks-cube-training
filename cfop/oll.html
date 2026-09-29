@@ -44,6 +44,14 @@
       padding: 16px 20px;
     }
 
+    .header-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
     header h1 {
       margin: 0;
       font-size: 1.35rem;
@@ -60,6 +68,31 @@
       display: flex;
       gap: 8px;
       margin-top: 14px;
+    }
+
+    .csv-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-left: auto;
+    }
+
+    .csv-action {
+      appearance: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 9px;
+      background: var(--card);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.8125rem;
+      cursor: pointer;
+    }
+
+    .csv-action:hover {
+      border-color: #b8c4d9;
+      background: #f8faff;
     }
 
     .mode-btn {
@@ -456,8 +489,17 @@
 
 <body>
   <header>
-    <h1>OLL 手順一覧</h1>
-    <p id="summary">読み込み中…</p>
+    <div class="header-top">
+      <div>
+        <h1>OLL 手順一覧</h1>
+        <p id="summary">読み込み中…</p>
+      </div>
+      <div class="csv-actions">
+        <button id="import-csv-button" class="csv-action" type="button">CSV読み込み</button>
+        <button id="export-csv-button" class="csv-action" type="button">CSV出力</button>
+        <input id="import-csv-input" type="file" accept=".csv,text/csv" hidden>
+      </div>
+    </div>
     <div id="filter-modes" class="filter-modes" role="group" aria-label="絞り込み方法">
       <button class="mode-btn active" type="button" data-mode="all">すべて</button>
       <button class="mode-btn" type="button" data-mode="shape">形状</button>
@@ -475,6 +517,7 @@
   <script>
     const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "gif", "svg"];
     const ENTRY_EDITS_KEY = "oll-entry-edits";
+    const CSV_SOURCE_KEY = "oll-csv-source";
 
     function loadEntryEdits() {
       try {
@@ -495,17 +538,65 @@
     }
 
     function getEntryTags(entry) {
-      const csvTags = ["タグ1", "タグ2", "タグ3"]
-        .map((key) => (entry[key] ?? "").trim())
+      if (Array.isArray(entry["タグ"])) {
+        return [...new Set(entry["タグ"].map((tag) => String(tag).trim()).filter(Boolean))];
+      }
+      const csvTags = Object.keys(entry)
+        .filter((key) => /^タグ\d+$/.test(key))
+        .sort((a, b) => Number(a.slice(2)) - Number(b.slice(2)))
+        .map((key) => entry[key].trim())
         .filter(Boolean);
-      const savedTags = Array.isArray(entry["タグ"])
-        ? entry["タグ"].map((tag) => String(tag).trim()).filter(Boolean)
-        : [];
-      return [...new Set([...csvTags, ...savedTags])];
+      return [...new Set(csvTags)];
     }
 
     function getAllTags(entries) {
       return new Set(entries.flatMap((entry) => getEntryTags(entry)));
+    }
+
+    function downloadCsv(entries) {
+      const editsByNo = loadEntryEdits();
+      const exportRows = entries.map((entry) => {
+        const data = { ...entry };
+        const edits = editsByNo[entry["No."]] ?? {};
+        for (const field of ["通称", "メモ", "覚える順", "手順", "AUF"]) {
+          if (typeof edits[field] === "string") {
+            data[field] = edits[field];
+          }
+        }
+        if (Array.isArray(edits["タグ"])) {
+          data["タグ"] = edits["タグ"];
+        }
+
+        const tags = getEntryTags(data);
+        for (const key of Object.keys(data)) {
+          if (key === "タグ" || /^タグ\d+$/.test(key)) {
+            delete data[key];
+          }
+        }
+        return { data, tags };
+      });
+
+      const headers = [...new Set(exportRows.flatMap(({ data }) => Object.keys(data)))];
+      const tagColumnCount = Math.max(3, ...exportRows.map(({ tags }) => tags.length));
+      for (let index = 1; index <= tagColumnCount; index += 1) {
+        headers.push(`タグ${index}`);
+      }
+
+      const escapeCsv = (value) => {
+        const text = String(value ?? "");
+        return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+      };
+      const lines = [headers, ...exportRows.map(({ data, tags }) => headers.map((header) => {
+        const tagMatch = header.match(/^タグ(\d+)$/);
+        return tagMatch ? tags[Number(tagMatch[1]) - 1] ?? "" : data[header] ?? "";
+      }))];
+      const csv = `\uFEFF${lines.map((line) => line.map(escapeCsv).join(",")).join("\r\n")}`;
+      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "oll_def.csv";
+      link.click();
+      URL.revokeObjectURL(url);
     }
 
     function parseCsv(text) {
@@ -1019,14 +1110,49 @@
       const tagFilterRoot = document.getElementById("tag-filter");
       const modeButtons = document.querySelectorAll(".mode-btn");
       const emptyFilter = document.getElementById("empty-filter");
+      const importCsvButton = document.getElementById("import-csv-button");
+      const exportCsvButton = document.getElementById("export-csv-button");
+      const importCsvInput = document.getElementById("import-csv-input");
+
+      importCsvButton.addEventListener("click", () => importCsvInput.click());
+      exportCsvButton.addEventListener("click", () => {
+        if (window.ollEntries) {
+          downloadCsv(window.ollEntries);
+        }
+      });
+      importCsvInput.addEventListener("change", async () => {
+        const file = importCsvInput.files?.[0];
+        if (!file) {
+          return;
+        }
+        try {
+          const csvText = await file.text();
+          const importedEntries = parseCsv(csvText);
+          if (importedEntries.length === 0 || !Object.hasOwn(importedEntries[0], "No.")) {
+            throw new Error("No.列を含むOLL CSVを選択してください");
+          }
+          localStorage.setItem(CSV_SOURCE_KEY, csvText);
+          localStorage.removeItem(ENTRY_EDITS_KEY);
+          location.reload();
+        } catch (error) {
+          status.className = "status error";
+          status.hidden = false;
+          status.textContent = `CSVの読み込みに失敗しました: ${error.message}`;
+        } finally {
+          importCsvInput.value = "";
+        }
+      });
 
       try {
-        const response = await fetch("oll_def.csv");
-        if (!response.ok) {
-          throw new Error(`oll_def.csv の読み込みに失敗しました (${response.status})`);
+        let text = localStorage.getItem(CSV_SOURCE_KEY);
+        if (text === null) {
+          const response = await fetch("oll_def.csv");
+          if (!response.ok) {
+            throw new Error(`oll_def.csv の読み込みに失敗しました (${response.status})`);
+          }
+          text = await response.text();
         }
 
-        const text = await response.text();
         const entries = parseCsv(text);
 
         if (entries.length === 0) {
@@ -1050,6 +1176,7 @@
         status.hidden = true;
         grid.hidden = false;
         summary.textContent = `${entries.length} ケース`;
+        window.ollEntries = entries;
 
         const allTags = getAllTags(entries);
         const fragment = document.createDocumentFragment();
