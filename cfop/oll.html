@@ -323,10 +323,12 @@
       font-size: 0.85rem;
       min-height: 2em;
       overflow: hidden;
+      overflow-wrap: anywhere;
       resize: none;
       margin-top: 0;
       padding-top: 0px;
       padding-bottom: 0px;
+      white-space: pre-wrap;
     }
 
     .oll-learn-order {
@@ -675,7 +677,6 @@
         resizeMemo();
         saveEntryEdit(entry["No."], "メモ", memo.value);
       });
-      resizeMemo();
 
       const tags = getEntryTags(entry);
       const tagsElement = document.createElement("div");
@@ -770,6 +771,7 @@
 
       body.append(tagsElement);
       card.append(imageWrap, body, memo, tagOptions);
+      requestAnimationFrame(resizeMemo);
 
       loadImage(imageCandidates(entry["No."])).then((src) => {
         if (src) {
