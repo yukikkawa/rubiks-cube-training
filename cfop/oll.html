@@ -927,6 +927,7 @@
         grid.append(fragment);
 
         let tagFilter = tagFilterRoot;
+        let tagFilterScrollController = null;
         const filterState = loadFilterState();
         let selectedMode = "all";
 
@@ -962,12 +963,23 @@
           tagFilter.replaceWith(nextTagFilter);
           tagFilter = nextTagFilter;
           tagFilter.hidden = false;
-          setupScrollHideTagFilter(tagFilter);
+          tagFilterScrollController = setupScrollHideTagFilter(tagFilter);
           applyTagFilter(savedTag, mode, grid, summary, emptyFilter, tagFilter);
         };
 
         for (const button of modeButtons) {
-          button.addEventListener("click", () => selectMode(button.dataset.mode));
+          button.addEventListener("click", () => {
+            const mode = button.dataset.mode;
+            if (mode === selectedMode && mode !== "all") {
+              const isHidden = tagFilter.classList.contains("is-hidden");
+              tagFilter.classList.toggle("is-hidden", !isHidden);
+              if (isHidden) {
+                tagFilterScrollController?.keepVisibleDuringTransition();
+              }
+              return;
+            }
+            selectMode(mode);
+          });
         }
 
         const savedMode = ["all", "shape", "order", "tag"].includes(filterState.mode) ? filterState.mode : "all";
@@ -981,8 +993,8 @@
     
     function setupScrollHideTagFilter(tagFilterElement) {
         let lastScrollY = window.pageYOffset || document.documentElement.scrollTop;
-        let isHidden = false;
         let isTransitioning = false; // 状態変更中フラグ
+      let ignoreHideUntil = 0;
         
         // 誤作動防止のための閾値（微小なスクロールで反応しないようにする）
         const THRESHOLD = 10; 
@@ -992,55 +1004,37 @@
         const durationStr = getComputedStyle(document.documentElement).getPropertyValue('--tag-filter-transition-duration').trim();
         const TRANSITION_DURATION = parseFloat(durationStr) * 1000 * 1.05;
 
+        const keepVisibleDuringTransition = () => {
+          lastScrollY = window.pageYOffset || document.documentElement.scrollTop;
+          ignoreHideUntil = performance.now() + TRANSITION_DURATION + 100;
+        };
+
         window.addEventListener("scroll", () => {
+          const currentScrollY = window.pageYOffset || document.documentElement.scrollTop;
+
             // 状態変更中はスクロールイベントを無視
             if (isTransitioning) {
+            lastScrollY = currentScrollY;
                 return;
             }
 
-            const currentScrollY = window.pageYOffset || document.documentElement.scrollTop;
+          if (performance.now() < ignoreHideUntil) {
+            lastScrollY = currentScrollY;
+            return;
+          }
+
             const delta = currentScrollY - lastScrollY;
-
-            // ページの最上部付近では常に表示
-            if (currentScrollY <= TOP_OFFSET) {
-                if (lastScrollY < TOP_OFFSET){
-                    return;
-                }
-
-                if (isHidden) {
-                    isTransitioning = true;
-                    tagFilterElement.classList.remove("is-hidden");
-                    isHidden = false;
-                    setTimeout(() => {
-                        isTransitioning = false;
-                        lastScrollY = window.pageYOffset || document.documentElement.scrollTop;
-                    }, TRANSITION_DURATION);
-                }
-                lastScrollY = currentScrollY;
-                return;
-            }
 
             // スクロール量が小さすぎる場合は無視（手ぶれ対策）
             if (Math.abs(delta) < THRESHOLD) {
                 return;
             }
 
-            // 下スクロール ＝ 非表示 / 上スクロール ＝ 表示
+            // 下スクロール ＝ 非表示
             if (delta > 0) {
-                if (!isHidden) {
+              if (!tagFilterElement.classList.contains("is-hidden")) {
                     isTransitioning = true;
                     tagFilterElement.classList.add("is-hidden");
-                    isHidden = true;
-                    setTimeout(() => {
-                        isTransitioning = false;
-                        lastScrollY = window.pageYOffset || document.documentElement.scrollTop;
-                    }, TRANSITION_DURATION);
-                }
-            } else if (delta < 0) {
-                if (isHidden) {
-                    isTransitioning = true;
-                    tagFilterElement.classList.remove("is-hidden");
-                    isHidden = false;
                     setTimeout(() => {
                         isTransitioning = false;
                         lastScrollY = window.pageYOffset || document.documentElement.scrollTop;
@@ -1050,6 +1044,8 @@
 
             lastScrollY = currentScrollY;
         });
+
+    return { keepVisibleDuringTransition };
     }
     init();
   </script>
