@@ -262,6 +262,58 @@
       white-space: pre-wrap;
     }
 
+    .oll-algorithm-editor {
+      min-width: 0;
+      margin-bottom: 10px;
+    }
+
+    .oll-algorithm-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .oll-algorithm-row .oll-algorithm {
+      flex: 1;
+      min-width: 0;
+      margin-bottom: 0;
+    }
+
+    .oll-algorithm-input {
+      display: block;
+      width: 100%;
+      min-height: 4.5em;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 1.05rem;
+      font-weight: 700;
+      line-height: 1.55;
+      resize: vertical;
+      white-space: pre-wrap;
+    }
+
+    .oll-algorithm-controls {
+      display: flex;
+      flex: 0 0 auto;
+      gap: 4px;
+    }
+
+    .oll-algorithm-input[hidden],
+    .oll-algorithm-controls[hidden] {
+      display: none;
+    }
+
+    .oll-algorithm-action {
+      appearance: none;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 3px 6px;
+      background: var(--card);
+      color: var(--muted);
+      cursor: pointer;
+      font: inherit;
+      font-size: 0.75rem;
+    }
+
     .oll-meta {
       display: flex;
       flex-direction: column;
@@ -612,9 +664,86 @@
       no.className = "oll-no";
       no.textContent = `#${entry["No."]}`;
 
+      const algorithmEditor = document.createElement("div");
+      algorithmEditor.className = "oll-algorithm-editor";
+
+      const algorithmRow = document.createElement("div");
+      algorithmRow.className = "oll-algorithm-row";
+
       const algorithm = document.createElement("p");
       algorithm.className = "oll-algorithm";
       algorithm.textContent = entry["手順"] || "—";
+
+      const algorithmInput = document.createElement("textarea");
+      algorithmInput.className = "oll-editable oll-algorithm-input";
+      algorithmInput.hidden = true;
+      algorithmInput.setAttribute("aria-label", `OLL ${entry["No."]} の手順とAUFを編集`);
+
+      const algorithmControls = document.createElement("div");
+      algorithmControls.className = "oll-algorithm-controls";
+
+      const editAlgorithmButton = document.createElement("button");
+      editAlgorithmButton.className = "oll-algorithm-action";
+      editAlgorithmButton.type = "button";
+      editAlgorithmButton.textContent = "編集";
+      editAlgorithmButton.setAttribute("aria-label", `OLL ${entry["No."]} の手順を編集`);
+
+      const editingActions = document.createElement("div");
+      editingActions.className = "oll-algorithm-controls";
+      editingActions.hidden = true;
+
+      const saveAlgorithmButton = document.createElement("button");
+      saveAlgorithmButton.className = "oll-algorithm-action";
+      saveAlgorithmButton.type = "button";
+      saveAlgorithmButton.textContent = "完了";
+
+      const cancelAlgorithmButton = document.createElement("button");
+      cancelAlgorithmButton.className = "oll-algorithm-action";
+      cancelAlgorithmButton.type = "button";
+      cancelAlgorithmButton.textContent = "キャンセル";
+
+      let algorithmImage = null;
+      const setAlgorithmEditing = (editing) => {
+        algorithmInput.hidden = !editing;
+        algorithm.hidden = editing;
+        algorithmControls.hidden = editing;
+        editingActions.hidden = !editing;
+      };
+
+      editAlgorithmButton.addEventListener("click", () => {
+        algorithmInput.value = [entry["AUF"], entry["手順"]]
+          .map((value) => (value ?? "").trim())
+          .filter(Boolean)
+          .join(" ");
+        setAlgorithmEditing(true);
+        algorithmInput.focus();
+      });
+
+      saveAlgorithmButton.addEventListener("click", () => {
+        const editedText = algorithmInput.value.trim();
+        const aufMatch = editedText.match(/^([yY](?:2|')?)(?:\s+|$)/);
+        entry["AUF"] = aufMatch ? aufMatch[1].toLowerCase() : "";
+        entry["手順"] = aufMatch ? editedText.slice(aufMatch[0].length).trim() : editedText;
+        algorithm.textContent = entry["手順"] || "—";
+        if (algorithmImage) {
+          algorithmImage.style.transform = `rotate(${getAufRotation(entry["AUF"])}deg)`;
+        }
+        saveEntryEdit(entry["No."], "AUF", entry["AUF"]);
+        saveEntryEdit(entry["No."], "手順", entry["手順"]);
+        setAlgorithmEditing(false);
+      });
+
+      cancelAlgorithmButton.addEventListener("click", () => setAlgorithmEditing(false));
+      algorithmInput.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          setAlgorithmEditing(false);
+        }
+      });
+
+      algorithmControls.append(editAlgorithmButton);
+      editingActions.append(saveAlgorithmButton, cancelAlgorithmButton);
+      algorithmRow.append(algorithm, algorithmControls);
+      algorithmEditor.append(algorithmRow, algorithmInput, editingActions);
 
       const name = document.createElement("input");
       name.className = "oll-editable oll-name-input";
@@ -661,7 +790,7 @@
       });
 
       meta.append(categoryLine, learnOrder);
-      body.append(cardHead, algorithm, meta);
+      body.append(cardHead, algorithmEditor, meta);
 
       const memo = document.createElement("textarea");
       memo.className = "oll-editable oll-memo-input";
@@ -779,6 +908,7 @@
           img.src = src;
           img.alt = `OLL ${entry["No."]}`;
           img.style.transform = `rotate(${getAufRotation(entry["AUF"])}deg)`;
+          algorithmImage = img;
           imageWrap.append(img);
         } else {
           const placeholder = document.createElement("div");
@@ -907,7 +1037,7 @@
         for (const entry of entries) {
           const edits = entryEdits[entry["No."]];
           if (edits) {
-            for (const field of ["通称", "メモ", "覚える順", "タグ"]) {
+            for (const field of ["通称", "メモ", "覚える順", "タグ", "手順", "AUF"]) {
               if (typeof edits[field] === "string") {
                 entry[field] = edits[field];
               } else if (field === "タグ" && Array.isArray(edits[field])) {
