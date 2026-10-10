@@ -10,481 +10,7 @@
   <link
     href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap"
     rel="stylesheet">
-  <style>
-    :root {
-      --border: #d8dce3;
-      --text: #1a1a1a;
-      --muted: #5f6368;
-      --bg: #f4f5f7;
-      --card: #fff;
-      --accent: #1a73e8;
-      --tag-filter-transition-duration: 0.3s;
-      --tag-filter-transition: opacity var(--tag-filter-transition-duration) ease, max-height var(--tag-filter-transition-duration) ease, margin-top var(--tag-filter-transition-duration) ease, visibility var(--tag-filter-transition-duration) ease;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      font-family: "Noto Sans JP", sans-serif;
-      color: var(--text);
-      background: var(--bg);
-      line-height: 1.5;
-    }
-
-    header {
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      background: rgba(244, 245, 247, 0.92);
-      backdrop-filter: blur(8px);
-      border-bottom: 1px solid var(--border);
-      padding: 16px 20px;
-    }
-
-    .header-top {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    header h1 {
-      margin: 0;
-      font-size: 1.35rem;
-      font-weight: 700;
-    }
-
-    header p {
-      margin: 4px 0 0;
-      font-size: 0.875rem;
-      color: var(--muted);
-    }
-
-    .filter-modes {
-      display: flex;
-      gap: 8px;
-      margin-top: 14px;
-    }
-
-    .csv-actions {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-      gap: 8px;
-      margin-left: auto;
-    }
-
-    .csv-action {
-      appearance: none;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 5px 9px;
-      background: var(--card);
-      color: var(--text);
-      font: inherit;
-      font-size: 0.8125rem;
-      cursor: pointer;
-    }
-
-    .csv-action:hover {
-      border-color: #b8c4d9;
-      background: #f8faff;
-    }
-
-    .mode-btn {
-      appearance: none;
-      border: 1px solid var(--border);
-      background: var(--card);
-      color: var(--text);
-      font: inherit;
-      font-size: 0.8125rem;
-      font-weight: 500;
-      line-height: 1.2;
-      padding: 6px 12px;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: background 0.15s, border-color 0.15s, color 0.15s;
-    }
-
-    .mode-btn:hover {
-      border-color: #b8c4d9;
-      background: #f8faff;
-    }
-
-    .mode-btn.active {
-      border-color: var(--accent);
-      background: #e8f0fe;
-      color: var(--accent);
-      font-weight: 700;
-    }
-
-    .tag-filter {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 14px;
-      transition: var(--tag-filter-transition);
-      max-height: 500px;
-      overflow: hidden;
-    }
-
-    .tag-filter.is-hidden {
-      max-height: 0;
-      margin-top: 0;
-      opacity: 0;
-      pointer-events: none;
-      visibility: hidden;
-    }
-
-    .tag-filter[hidden] {
-      display: none;
-    }
-
-    .tag-btn {
-      appearance: none;
-      border: 1px solid var(--border);
-      background: var(--card);
-      color: var(--text);
-      font: inherit;
-      font-size: 0.8125rem;
-      font-weight: 500;
-      line-height: 1.2;
-      padding: 6px 12px;
-      border-radius: 999px;
-      cursor: pointer;
-      transition: background 0.15s, border-color 0.15s, color 0.15s;
-    }
-
-    .tag-btn:hover {
-      border-color: #b8c4d9;
-      background: #f8faff;
-    }
-
-    .tag-btn.active {
-      border-color: var(--accent);
-      background: #e8f0fe;
-      color: var(--accent);
-      font-weight: 700;
-    }
-
-    .tag-btn.learn-order {
-      color: var(--text);
-    }
-
-    .tag-stars,
-    .oll-learn-order-stars {
-      color: #eab308;
-    }
-
-    .empty-filter {
-      padding: 24px 16px;
-      text-align: center;
-      color: var(--muted);
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-    }
-
-    main {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 20px;
-    }
-
-    .status {
-      padding: 12px 16px;
-      border-radius: 8px;
-      background: var(--card);
-      border: 1px solid var(--border);
-      color: var(--muted);
-    }
-
-    .status.error {
-      color: #b3261e;
-      border-color: #f5c2c0;
-      background: #fff5f5;
-    }
-
-    .oll-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(min(100%, 480px), 1fr));
-      gap: 12px;
-    }
-
-    .oll-card {
-      display: grid;
-      grid-template-columns: 120px 1fr;
-      gap: 12px;
-      align-items: start;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 12px;
-      min-height: 132px;
-    }
-
-    .oll-card.is-filtered-out {
-      display: none !important;
-    }
-
-    .oll-image-wrap {
-      width: 120px;
-      height: 120px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #fafafa;
-      border: 1px solid #eee;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-
-    .oll-image-wrap img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-    }
-
-    .oll-image-placeholder {
-      font-size: 0.75rem;
-      color: var(--muted);
-      text-align: center;
-      padding: 8px;
-    }
-
-    .oll-body {
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .oll-card-head {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-
-    .oll-no {
-      display: inline-block;
-      font-size: 0.75rem;
-      font-weight: 700;
-      color: var(--accent);
-      background: #e8f0fe;
-      border-radius: 999px;
-      padding: 2px 8px;
-      margin-bottom: 8px;
-    }
-
-    .oll-card-head .oll-no {
-      flex: 0 0 auto;
-      margin-bottom: 0;
-    }
-
-    .oll-algorithm {
-      margin: 0 0 10px;
-      font-family: "JetBrains Mono", monospace;
-      font-size: 1.05rem;
-      font-weight: 700;
-      line-height: 1.55;
-      word-break: break-word;
-      white-space: pre-wrap;
-    }
-
-    .oll-algorithm-editor {
-      min-width: 0;
-      margin-bottom: 10px;
-    }
-
-    .oll-algorithm-row {
-      display: flex;
-      align-items: flex-start;
-      gap: 8px;
-    }
-
-    .oll-algorithm-row .oll-algorithm {
-      flex: 1;
-      min-width: 0;
-      margin-bottom: 0;
-    }
-
-    .oll-algorithm-input {
-      display: block;
-      width: 100%;
-      min-height: 4.5em;
-      font-family: "JetBrains Mono", monospace;
-      font-size: 1.05rem;
-      font-weight: 700;
-      line-height: 1.55;
-      resize: vertical;
-      white-space: pre-wrap;
-    }
-
-    .oll-algorithm-controls {
-      display: flex;
-      flex: 0 0 auto;
-      gap: 4px;
-    }
-
-    .oll-algorithm-input[hidden],
-    .oll-algorithm-controls[hidden] {
-      display: none;
-    }
-
-    .oll-algorithm-action {
-      appearance: none;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 3px 6px;
-      background: var(--card);
-      color: var(--muted);
-      cursor: pointer;
-      font: inherit;
-      font-size: 0.75rem;
-    }
-
-    .oll-meta {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .oll-category,
-    .oll-name {
-      margin: 0;
-      font-size: 0.8125rem;
-      color: var(--muted);
-      line-height: 1.45;
-      word-break: break-word;
-    }
-
-    .oll-name {
-      font-weight: 500;
-    }
-
-    .oll-editable {
-      width: 100%;
-      border: 1px solid transparent;
-      border-radius: 4px;
-      background: transparent;
-      color: inherit;
-      font: inherit;
-      line-height: inherit;
-      padding: 1px 3px;
-    }
-
-    .oll-editable:hover,
-    .oll-editable:focus {
-      border-color: var(--border);
-      background: var(--card);
-      outline: none;
-    }
-
-    .oll-editable::placeholder {
-      color: var(--muted);
-      opacity: 0.8;
-    }
-
-    .oll-name-input {
-      flex: 1;
-      width: auto;
-      min-width: 0;
-      font-size: 0.85rem;
-      font-weight: 500;
-    }
-
-    .oll-order-input {
-      width: 4.5rem;
-      color: var(--text);
-    }
-
-    .oll-memo-input {
-      display: block;
-      grid-column: 1 / -1;
-      font-size: 0.85rem;
-      min-height: 2em;
-      overflow: hidden;
-      overflow-wrap: anywhere;
-      resize: none;
-      margin-top: 0;
-      padding-top: 0px;
-      padding-bottom: 0px;
-      white-space: pre-wrap;
-    }
-
-    .oll-learn-order {
-      color: var(--text);
-      letter-spacing: 0;
-    }
-
-    .oll-memo {
-      margin: 8px 0 0;
-      font-size: 0.8rem;
-      color: var(--muted);
-    }
-
-    .oll-tags {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 3px 4px;
-      margin-top: 4px;
-    }
-
-    .oll-tag {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 1px 6px;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      color: var(--muted);
-      font-size: 0.75rem;
-    }
-
-    .oll-tag-remove {
-      appearance: none;
-      border: 0;
-      padding: 0;
-      background: transparent;
-      color: var(--muted);
-      cursor: pointer;
-      font: inherit;
-      line-height: 1;
-    }
-
-    .oll-tag-input {
-      width: 7rem;
-      font-size: 0.75rem;
-    }
-
-    .oll-tag-add {
-      appearance: none;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 2px 6px;
-      background: var(--card);
-      color: var(--muted);
-      cursor: pointer;
-      font: inherit;
-      font-size: 0.75rem;
-    }
-
-    @media (max-width: 520px) {
-      .oll-card {
-        grid-template-columns: 96px 1fr;
-      }
-
-      .oll-image-wrap {
-        width: 96px;
-        height: 96px;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="oll.css">
 </head>
 
 <body>
@@ -738,278 +264,320 @@
       }
     }
 
+    function createElement(tagName, className, textContent) {
+      const element = document.createElement(tagName);
+      element.className = className;
+      if (textContent !== undefined) {
+        element.textContent = textContent;
+      }
+      return element;
+    }
+
     function createCard(entry, allTags) {
-      const card = document.createElement("article");
-      card.className = "oll-card";
-      card.setAttribute("data-shape", getShape(entry));
-      card.setAttribute("data-order", getLearnOrder(entry));
+      const card = createElement("article", "oll-card");
+      setCardData(card, entry);
+      const imageWrap = createElement("div", "oll-image-wrap");
+      const imageState = { current: null };
+      const tagOptions = createTagOptions(entry);
+      const body = createCardBody(entry, card, allTags, imageState, tagOptions);
+      card.append(imageWrap, body, createMemo(entry), tagOptions);
+      loadCardImage(entry, imageWrap, imageState);
+      return card;
+    }
+
+    function setCardData(card, entry) {
+      card.dataset.shape = getShape(entry);
+      card.dataset.order = getLearnOrder(entry);
       card.dataset.tags = JSON.stringify(getEntryTags(entry));
+    }
 
-      const imageWrap = document.createElement("div");
-      imageWrap.className = "oll-image-wrap";
+    function createCardBody(entry, card, allTags, imageState, tagOptions) {
+      const body = createElement("div", "oll-body");
+      body.append(createCardHead(entry), createAlgorithmEditor(entry, imageState));
+      body.append(createMetadata(entry, card));
+      body.append(createTagEditor(entry, card, allTags, tagOptions));
+      return body;
+    }
 
-      const body = document.createElement("div");
-      body.className = "oll-body";
+    function createCardHead(entry) {
+      const no = createElement("span", "oll-no", `#${entry["No."]}`);
+      const name = createNameInput(entry);
+      const head = createElement("div", "oll-card-head");
+      head.append(no, name);
+      return head;
+    }
 
-      const no = document.createElement("span");
-      no.className = "oll-no";
-      no.textContent = `#${entry["No."]}`;
-
-      const algorithmEditor = document.createElement("div");
-      algorithmEditor.className = "oll-algorithm-editor";
-
-      const algorithmRow = document.createElement("div");
-      algorithmRow.className = "oll-algorithm-row";
-
-      const algorithm = document.createElement("p");
-      algorithm.className = "oll-algorithm";
-      algorithm.textContent = entry["手順"] || "—";
-
-      const algorithmInput = document.createElement("textarea");
-      algorithmInput.className = "oll-editable oll-algorithm-input";
-      algorithmInput.hidden = true;
-      algorithmInput.setAttribute("aria-label", `OLL ${entry["No."]} の手順とAUFを編集`);
-
-      const algorithmControls = document.createElement("div");
-      algorithmControls.className = "oll-algorithm-controls";
-
-      const editAlgorithmButton = document.createElement("button");
-      editAlgorithmButton.className = "oll-algorithm-action";
-      editAlgorithmButton.type = "button";
-      editAlgorithmButton.textContent = "編集";
-      editAlgorithmButton.setAttribute("aria-label", `OLL ${entry["No."]} の手順を編集`);
-
-      const editingActions = document.createElement("div");
-      editingActions.className = "oll-algorithm-controls";
-      editingActions.hidden = true;
-
-      const saveAlgorithmButton = document.createElement("button");
-      saveAlgorithmButton.className = "oll-algorithm-action";
-      saveAlgorithmButton.type = "button";
-      saveAlgorithmButton.textContent = "完了";
-
-      const cancelAlgorithmButton = document.createElement("button");
-      cancelAlgorithmButton.className = "oll-algorithm-action";
-      cancelAlgorithmButton.type = "button";
-      cancelAlgorithmButton.textContent = "キャンセル";
-
-      let algorithmImage = null;
-      const setAlgorithmEditing = (editing) => {
-        algorithmInput.hidden = !editing;
-        algorithm.hidden = editing;
-        algorithmControls.hidden = editing;
-        editingActions.hidden = !editing;
-      };
-
-      editAlgorithmButton.addEventListener("click", () => {
-        algorithmInput.value = [entry["AUF"], entry["手順"]]
-          .map((value) => (value ?? "").trim())
-          .filter(Boolean)
-          .join(" ");
-        setAlgorithmEditing(true);
-        algorithmInput.focus();
-      });
-
-      saveAlgorithmButton.addEventListener("click", () => {
-        const editedText = algorithmInput.value.trim();
-        const aufMatch = editedText.match(/^([yY](?:2|')?)(?:\s+|$)/);
-        entry["AUF"] = aufMatch ? aufMatch[1].toLowerCase() : "";
-        entry["手順"] = aufMatch ? editedText.slice(aufMatch[0].length).trim() : editedText;
-        algorithm.textContent = entry["手順"] || "—";
-        if (algorithmImage) {
-          algorithmImage.style.transform = `rotate(${getAufRotation(entry["AUF"])}deg)`;
-        }
-        saveEntryEdit(entry["No."], "AUF", entry["AUF"]);
-        saveEntryEdit(entry["No."], "手順", entry["手順"]);
-        setAlgorithmEditing(false);
-      });
-
-      cancelAlgorithmButton.addEventListener("click", () => setAlgorithmEditing(false));
-      algorithmInput.addEventListener("keydown", (event) => {
-        if (event.key === "Escape") {
-          setAlgorithmEditing(false);
-        }
-      });
-
-      algorithmControls.append(editAlgorithmButton);
-      editingActions.append(saveAlgorithmButton, cancelAlgorithmButton);
-      algorithmRow.append(algorithm, algorithmControls);
-      algorithmEditor.append(algorithmRow, algorithmInput, editingActions);
-
-      const name = document.createElement("input");
-      name.className = "oll-editable oll-name-input";
+    function createNameInput(entry) {
+      const name = createElement("input", "oll-editable oll-name-input");
       name.type = "text";
       name.value = entry["通称"] || "";
       name.placeholder = "通称";
       name.setAttribute("aria-label", `OLL ${entry["No."]} の通称`);
       name.addEventListener("change", () => saveEntryEdit(entry["No."], "通称", name.value));
+      return name;
+    }
 
-      const cardHead = document.createElement("div");
-      cardHead.className = "oll-card-head";
-      cardHead.append(no, name);
+    function createAlgorithmEditor(entry, imageState) {
+      const editor = createElement("div", "oll-algorithm-editor");
+      const algorithm = createElement("p", "oll-algorithm", entry["手順"] || "—");
+      const input = createAlgorithmInput(entry);
+      const controls = createAlgorithmControls(entry);
+      const editingActions = createEditingActions();
+      const row = createElement("div", "oll-algorithm-row");
+      row.append(algorithm, controls.container);
+      editor.append(row, input, editingActions.container);
+      bindAlgorithmEditor(entry, { algorithm, input, controls, editingActions, imageState });
+      return editor;
+    }
 
-      const meta = document.createElement("div");
-      meta.className = "oll-meta";
+    function createAlgorithmInput(entry) {
+      const input = createElement("textarea", "oll-editable oll-algorithm-input");
+      input.hidden = true;
+      input.setAttribute("aria-label", `OLL ${entry["No."]} の手順とAUFを編集`);
+      return input;
+    }
 
-      const categoryLine = document.createElement("p");
-      categoryLine.className = "oll-category";
-      const rate = entry["出現率"] ? ` · ${entry["出現率"]}` : "";
-      categoryLine.textContent = `${getShape(entry)}${rate}`.trim() || "—";
+    function createAlgorithmButton(textContent, ariaLabel) {
+      const button = createElement("button", "oll-algorithm-action", textContent);
+      button.type = "button";
+      if (ariaLabel) {
+        button.setAttribute("aria-label", ariaLabel);
+      }
+      return button;
+    }
 
-      const learnOrder = document.createElement("p");
-      learnOrder.className = "oll-category oll-learn-order";
-      const learnOrderLabel = document.createTextNode("覚える順: ");
-      const orderInput = document.createElement("input");
-      orderInput.className = "oll-editable oll-order-input";
-      orderInput.type = "number";
-      orderInput.min = "1";
-      orderInput.step = "1";
-      orderInput.value = getLearnOrder(entry);
-      orderInput.placeholder = "未設定";
-      orderInput.setAttribute("aria-label", `OLL ${entry["No."]} の覚える順`);
-      const starsElement = document.createElement("span");
-      starsElement.className = "oll-learn-order-stars";
-      starsElement.textContent = getLearnOrderStars(entry);
-      learnOrder.append(learnOrderLabel, starsElement, " ", orderInput);
+    function createAlgorithmControls(entry) {
+      const container = createElement("div", "oll-algorithm-controls");
+      const button = createAlgorithmButton("編集", `OLL ${entry["No."]} の手順を編集`);
+      container.append(button);
+      return { container, button };
+    }
 
-      orderInput.addEventListener("input", () => {
-        const value = orderInput.value.trim();
-        const stars = getStars(value);
-        card.setAttribute("data-order", value);
-        starsElement.textContent = stars;
-        saveEntryEdit(entry["No."], "覚える順", value);
+    function createEditingActions() {
+      const container = createElement("div", "oll-algorithm-controls");
+      container.hidden = true;
+      const saveButton = createAlgorithmButton("完了");
+      const cancelButton = createAlgorithmButton("キャンセル");
+      container.append(saveButton, cancelButton);
+      return { container, saveButton, cancelButton };
+    }
+
+    function setAlgorithmEditing(elements, editing) {
+      elements.input.hidden = !editing;
+      elements.algorithm.hidden = editing;
+      elements.controls.container.hidden = editing;
+      elements.editingActions.container.hidden = !editing;
+    }
+
+    function beginAlgorithmEditing(entry, elements) {
+      elements.input.value = [entry["AUF"], entry["手順"]]
+        .map((value) => (value ?? "").trim())
+        .filter(Boolean)
+        .join(" ");
+      setAlgorithmEditing(elements, true);
+      elements.input.focus();
+    }
+
+    function saveAlgorithm(entry, elements) {
+      const editedText = elements.input.value.trim();
+      const aufMatch = editedText.match(/^([yY](?:2|')?)(?:\s+|$)/);
+      entry["AUF"] = aufMatch ? aufMatch[1].toLowerCase() : "";
+      entry["手順"] = aufMatch ? editedText.slice(aufMatch[0].length).trim() : editedText;
+      elements.algorithm.textContent = entry["手順"] || "—";
+      saveEntryEdit(entry["No."], "AUF", entry["AUF"]);
+      saveEntryEdit(entry["No."], "手順", entry["手順"]);
+      setAlgorithmEditing(elements, false);
+      updateAlgorithmImage(entry, elements.imageState.current);
+    }
+
+    function updateAlgorithmImage(entry, image) {
+      if (image) {
+        image.style.transform = `rotate(${getAufRotation(entry["AUF"])}deg)`;
+      }
+    }
+
+    function bindAlgorithmEditor(entry, elements) {
+      elements.controls.button.addEventListener("click", () => beginAlgorithmEditing(entry, elements));
+      elements.editingActions.saveButton.addEventListener("click", () => saveAlgorithm(entry, elements));
+      elements.editingActions.cancelButton.addEventListener("click", () => setAlgorithmEditing(elements, false));
+      elements.input.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          setAlgorithmEditing(elements, false);
+        }
       });
+    }
 
-      meta.append(categoryLine, learnOrder);
-      body.append(cardHead, algorithmEditor, meta);
+    function createMetadata(entry, card) {
+      const meta = createElement("div", "oll-meta");
+      const rate = entry["出現率"] ? ` · ${entry["出現率"]}` : "";
+      const category = createElement("p", "oll-category", `${getShape(entry)}${rate}`.trim() || "—");
+      meta.append(category, createLearnOrderInput(entry, card));
+      return meta;
+    }
 
-      const memo = document.createElement("textarea");
-      memo.className = "oll-editable oll-memo-input";
+    function createLearnOrderInput(entry, card) {
+      const learnOrder = createElement("p", "oll-category oll-learn-order");
+      const input = createElement("input", "oll-editable oll-order-input");
+      input.type = "number";
+      input.min = "1";
+      input.step = "1";
+      input.value = getLearnOrder(entry);
+      input.placeholder = "未設定";
+      input.setAttribute("aria-label", `OLL ${entry["No."]} の覚える順`);
+      const stars = createElement("span", "oll-learn-order-stars", getLearnOrderStars(entry));
+      learnOrder.append(document.createTextNode("覚える順: "), stars, " ", input);
+      input.addEventListener("input", () => saveLearnOrder(entry, card, input, stars));
+      return learnOrder;
+    }
+
+    function saveLearnOrder(entry, card, input, stars) {
+      const value = input.value.trim();
+      card.dataset.order = value;
+      stars.textContent = getStars(value);
+      saveEntryEdit(entry["No."], "覚える順", value);
+    }
+
+    function createMemo(entry) {
+      const memo = createElement("textarea", "oll-editable oll-memo-input");
       memo.value = entry["メモ"] === "メモ" ? "" : (entry["メモ"] ?? "");
       memo.placeholder = "メモ";
       memo.rows = 1;
       memo.setAttribute("aria-label", `OLL ${entry["No."]} のメモ`);
-      const resizeMemo = () => {
-        memo.style.height = "auto";
-        memo.style.height = `${memo.scrollHeight}px`;
-      };
-      memo.addEventListener("input", () => {
-        resizeMemo();
-        saveEntryEdit(entry["No."], "メモ", memo.value);
-      });
+      memo.addEventListener("input", () => saveMemo(entry, memo));
+      requestAnimationFrame(() => resizeMemo(memo));
+      return memo;
+    }
 
+    function resizeMemo(memo) {
+      memo.style.height = "auto";
+      memo.style.height = `${memo.scrollHeight}px`;
+    }
+
+    function saveMemo(entry, memo) {
+      resizeMemo(memo);
+      saveEntryEdit(entry["No."], "メモ", memo.value);
+    }
+
+    function createTagOptions(entry) {
+      const options = document.createElement("datalist");
+      options.id = `tag-options-${entry["No."]}`;
+      return options;
+    }
+
+    function createTagEditor(entry, card, allTags, options) {
       const tags = getEntryTags(entry);
-      const tagsElement = document.createElement("div");
-      tagsElement.className = "oll-tags";
-      tagsElement.setAttribute("data-no", entry["No."]);
+      const elements = createTagEditorElements(entry);
+      const state = { entry, card, allTags, tags, options, ...elements };
+      refreshTagOptions(state);
+      bindTagEditor(state);
+      renderTags(state);
+      elements.container.append(elements.input, elements.addButton);
+      return elements.container;
+    }
 
-      const tagInput = document.createElement("input");
-      tagInput.className = "oll-editable oll-tag-input";
-      tagInput.type = "text";
-      tagInput.placeholder = "タグを追加";
-      tagInput.setAttribute("list", `tag-options-${entry["No."]}`);
-      tagInput.setAttribute("aria-label", `OLL ${entry["No."]} にタグを追加`);
+    function createTagEditorElements(entry) {
+      const container = createElement("div", "oll-tags");
+      container.dataset.no = entry["No."];
+      const input = createElement("input", "oll-editable oll-tag-input");
+      input.type = "text";
+      input.placeholder = "タグを追加";
+      input.setAttribute("list", `tag-options-${entry["No."]}`);
+      input.setAttribute("aria-label", `OLL ${entry["No."]} にタグを追加`);
+      const addButton = createElement("button", "oll-tag-add", "追加");
+      addButton.type = "button";
+      return { container, input, addButton };
+    }
 
-      const tagOptions = document.createElement("datalist");
-      tagOptions.id = `tag-options-${entry["No."]}`;
-      const refreshTagOptions = () => {
-        tagOptions.replaceChildren();
-        [...allTags]
-          .filter((tag) => !tags.includes(tag))
-          .sort((a, b) => a.localeCompare(b, "ja"))
-          .forEach((tag) => {
-          const option = document.createElement("option");
-          option.value = tag;
-          tagOptions.append(option);
-          });
-      };
-      refreshTagOptions();
+    function refreshTagOptions(state) {
+      state.options.replaceChildren();
+      [...state.allTags]
+        .filter((tag) => !state.tags.includes(tag))
+        .sort((a, b) => a.localeCompare(b, "ja"))
+        .forEach((tag) => state.options.append(createOption(tag)));
+    }
 
-      const saveTags = () => {
-        card.dataset.tags = JSON.stringify(tags);
-        saveEntryEdit(entry["No."], "タグ", tags);
-      };
+    function createOption(value) {
+      const option = document.createElement("option");
+      option.value = value;
+      return option;
+    }
 
-      const renderTags = () => {
-        tagsElement.querySelectorAll(".oll-tag").forEach((tag) => tag.remove());
-        for (const tag of tags) {
-          const tagElement = document.createElement("span");
-          tagElement.className = "oll-tag";
-          tagElement.append(document.createTextNode(tag));
+    function createTagElement(tag, state) {
+      const tagElement = createElement("span", "oll-tag");
+      const removeButton = createElement("button", "oll-tag-remove", "×");
+      removeButton.type = "button";
+      removeButton.setAttribute("aria-label", `${tag}を削除`);
+      removeButton.addEventListener("click", () => removeTag(tag, state));
+      tagElement.append(document.createTextNode(tag), removeButton);
+      return tagElement;
+    }
 
-          const removeButton = document.createElement("button");
-          removeButton.className = "oll-tag-remove";
-          removeButton.type = "button";
-          removeButton.textContent = "×";
-          removeButton.setAttribute("aria-label", `${tag}を削除`);
-          removeButton.addEventListener("click", () => {
-            tags.splice(tags.indexOf(tag), 1);
-            refreshTagOptions();
-            renderTags();
-            saveTags();
-          });
-          tagElement.append(removeButton);
-          tagsElement.prepend(tagElement);
+    function renderTags(state) {
+      state.container.querySelectorAll(".oll-tag").forEach((tag) => tag.remove());
+      state.tags.forEach((tag) => state.container.prepend(createTagElement(tag, state)));
+    }
+
+    function saveTags(state) {
+      state.card.dataset.tags = JSON.stringify(state.tags);
+      saveEntryEdit(state.entry["No."], "タグ", state.tags);
+    }
+
+    function removeTag(tag, state) {
+      state.tags.splice(state.tags.indexOf(tag), 1);
+      refreshTagOptions(state);
+      renderTags(state);
+      saveTags(state);
+    }
+
+    function addTagToOtherOptions(tag, currentOptions) {
+      document.querySelectorAll("datalist[id^='tag-options-']").forEach((options) => {
+        if (options !== currentOptions && ![...options.options].some((option) => option.value === tag)) {
+          options.append(createOption(tag));
         }
-      };
+      });
+    }
 
-      const addTag = () => {
-        const tag = tagInput.value.trim();
-        if (!tag || tags.includes(tag)) {
-          tagInput.value = "";
-          return;
-        }
-        tags.push(tag);
-        allTags.add(tag);
-        refreshTagOptions();
-        document.querySelectorAll("datalist[id^='tag-options-']").forEach((list) => {
-          if (list !== tagOptions && ![...list.options].some((option) => option.value === tag)) {
-            const option = document.createElement("option");
-            option.value = tag;
-            list.append(option);
-          }
-        });
-        tagInput.value = "";
-        renderTags();
-        saveTags();
-      };
+    function addTag(state) {
+      const tag = state.input.value.trim();
+      if (!tag || state.tags.includes(tag)) {
+        state.input.value = "";
+        return;
+      }
+      state.tags.push(tag);
+      state.allTags.add(tag);
+      refreshTagOptions(state);
+      addTagToOtherOptions(tag, state.options);
+      state.input.value = "";
+      renderTags(state);
+      saveTags(state);
+    }
 
-      const addTagButton = document.createElement("button");
-      addTagButton.className = "oll-tag-add";
-      addTagButton.type = "button";
-      addTagButton.textContent = "追加";
-      addTagButton.addEventListener("click", addTag);
-      tagInput.addEventListener("keydown", (event) => {
+    function bindTagEditor(state) {
+      state.addButton.addEventListener("click", () => addTag(state));
+      state.input.addEventListener("keydown", (event) => {
         if (event.key === "Enter") {
           event.preventDefault();
-          addTag();
+          addTag(state);
         }
       });
+    }
 
-      tagsElement.append(tagInput, addTagButton);
-      renderTags();
+    function loadCardImage(entry, imageWrap, imageState) {
+      loadImage(imageCandidates(entry["No."]))
+        .then((src) => appendCardImage(entry, imageWrap, imageState, src));
+    }
 
-      body.append(tagsElement);
-      card.append(imageWrap, body, memo, tagOptions);
-      requestAnimationFrame(resizeMemo);
-
-      loadImage(imageCandidates(entry["No."])).then((src) => {
-        if (src) {
-          const img = document.createElement("img");
-          img.src = src;
-          img.alt = `OLL ${entry["No."]}`;
-          img.style.transform = `rotate(${getAufRotation(entry["AUF"])}deg)`;
-          algorithmImage = img;
-          imageWrap.append(img);
-        } else {
-          const placeholder = document.createElement("div");
-          placeholder.className = "oll-image-placeholder";
-          placeholder.textContent = "画像なし";
-          imageWrap.append(placeholder);
-        }
-      });
-
-      return card;
+    function appendCardImage(entry, imageWrap, imageState, src) {
+      if (!src) {
+        imageWrap.append(createElement("div", "oll-image-placeholder", "画像なし"));
+        return;
+      }
+      const image = document.createElement("img");
+      image.src = src;
+      image.alt = `OLL ${entry["No."]}`;
+      imageState.current = image;
+      updateAlgorithmImage(entry, image);
+      imageWrap.append(image);
     }
 
     function createTagFilter(values, label, onSelect) {
