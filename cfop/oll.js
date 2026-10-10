@@ -477,13 +477,14 @@
       }
     }
 
-    function applyTagFilter(selectedTag, mode, gridEl, summary, emptyFilter, tagFilter) {
-      const cards = gridEl.querySelectorAll(".oll-card");
+    function applyTagFilter(selectedTag, mode, state) {
+      const { grid, emptyFilter } = state.elements;
+      const cards = grid.querySelectorAll(".oll-card");
       const visibleCount = filterCards(cards, selectedTag, mode);
-      updateActiveFilterButton(tagFilter, selectedTag);
+      updateActiveFilterButton(state, selectedTag);
       emptyFilter.hidden = visibleCount > 0;
-      gridEl.hidden = visibleCount === 0;
-      updateFilterSummary(summary, selectedTag, visibleCount, cards.length);
+      grid.hidden = visibleCount === 0;
+      updateFilterSummary(state, selectedTag, visibleCount, cards.length);
     }
 
     function filterCards(cards, selectedTag, mode) {
@@ -511,14 +512,14 @@
       return [card.getAttribute(attribute) ?? ""];
     }
 
-    function updateActiveFilterButton(tagFilter, selectedTag) {
-      tagFilter.querySelectorAll(".tag-btn").forEach((button) => {
+    function updateActiveFilterButton(state, selectedTag) {
+      state.elements.tagFilter.querySelectorAll(".tag-btn").forEach((button) => {
         button.classList.toggle("active", getTagValue(button) === selectedTag);
       });
     }
 
-    function updateFilterSummary(summary, selectedTag, visibleCount, totalCount) {
-      summary.textContent = selectedTag
+    function updateFilterSummary(state, selectedTag, visibleCount, totalCount) {
+      state.elements.summary.textContent = selectedTag
         ? `${visibleCount} / ${totalCount} ケース（${selectedTag}）`
         : `${totalCount} ケース`;
     }
@@ -642,8 +643,7 @@
       return {
         entries,
         allTags,
-        ...elements,
-        tagFilter: elements.tagFilter,
+        elements,
         filterState: loadFilterState(),
         selectedMode: "all",
         scrollController: null
@@ -655,7 +655,7 @@
     }
 
     function bindFilterModeButtons(state) {
-      state.modeButtons.forEach((button) => {
+      state.elements.modeButtons.forEach((button) => {
         button.addEventListener("click", () => handleFilterModeClick(button, state));
       });
     }
@@ -670,8 +670,9 @@
     }
 
     function toggleTagFilter(state) {
-      const isHidden = state.tagFilter.classList.contains("is-hidden");
-      state.tagFilter.classList.toggle("is-hidden", !isHidden);
+      const tagFilter = state.elements.tagFilter;
+      const isHidden = tagFilter.classList.contains("is-hidden");
+      tagFilter.classList.toggle("is-hidden", !isHidden);
       if (isHidden) {
         state.scrollController?.keepVisibleDuringTransition();
       }
@@ -681,7 +682,7 @@
       state.selectedMode = mode;
       state.filterState.mode = mode;
       saveFilterState(state.filterState);
-      updateModeButtons(state.modeButtons, mode);
+      updateModeButtons(state.elements.modeButtons, mode);
       if (mode === "all") {
         showAllEntries(state);
         return;
@@ -694,9 +695,9 @@
     }
 
     function showAllEntries(state) {
-      state.tagFilter.hidden = true;
-      state.tagFilter.classList.remove("is-hidden");
-      applyTagFilter("", "all", state.grid, state.summary, state.emptyFilter, state.tagFilter);
+      state.elements.tagFilter.hidden = true;
+      state.elements.tagFilter.classList.remove("is-hidden");
+      applyTagFilter("", "all", state);
     }
 
     function showFilterMode(mode, state) {
@@ -706,7 +707,7 @@
       const nextFilter = createTagFilter(values, label, (tag) => selectFilterTag(tag, state));
       replaceTagFilter(nextFilter, state);
       state.scrollController = setupScrollHideTagFilter(nextFilter);
-      applyTagFilter(savedTag, mode, state.grid, state.summary, state.emptyFilter, nextFilter);
+      applyTagFilter(savedTag, mode, state);
     }
 
     function getFilterLabel(mode) {
@@ -729,15 +730,15 @@
     }
 
     function replaceTagFilter(nextFilter, state) {
-      state.tagFilter.replaceWith(nextFilter);
-      state.tagFilter = nextFilter;
-      state.tagFilter.hidden = false;
+      state.elements.tagFilter.replaceWith(nextFilter);
+      state.elements.tagFilter = nextFilter;
+      state.elements.tagFilter.hidden = false;
     }
 
     function selectFilterTag(tag, state) {
       state.filterState[state.selectedMode] = tag;
       saveFilterState(state.filterState);
-      applyTagFilter(tag, state.selectedMode, state.grid, state.summary, state.emptyFilter, state.tagFilter);
+      applyTagFilter(tag, state.selectedMode, state);
     }
     
     function setupScrollHideTagFilter(tagFilterElement) {
